@@ -886,6 +886,21 @@ fn commands_for_exec_policy_for_platform(
         };
     }
 
+    // A strict parse failure does not mean "no commands": e.g. `ls ~ && git
+    // push` is rejected wholesale because `~` can expand. Fall back to the
+    // literal sub-command parser so forbidden literal commands in the same
+    // script are still checked against prefix rules. Without this, the raw
+    // argv is checked instead and no `git`/`cat` rule can match. See
+    // https://github.com/openai/codex/issues/63384.
+    if let Some(commands) = codex_shell_command::bash::parse_shell_lc_literal_commands(command)
+        && !commands.is_empty()
+    {
+        return ExecPolicyCommands {
+            commands,
+            command_origin: ExecPolicyCommandOrigin::Generic,
+        };
+    }
+
     if command_platform == DangerousCommandPlatform::Windows
         && let Some(commands) =
             codex_shell_command::powershell::parse_powershell_command_into_plain_commands(command)

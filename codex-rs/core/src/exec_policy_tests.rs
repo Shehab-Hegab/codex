@@ -709,6 +709,57 @@ fn commands_for_exec_policy_falls_back_for_whitespace_shell_script() {
     );
 }
 
+// Regression tests for https://github.com/openai/codex/issues/63384
+#[test]
+fn commands_for_exec_policy_literal_fallback_row4_cat() {
+    // `~` in the first command makes the strict parser reject the whole script.
+    // The literal fallback must still expose the forbidden `cat` command.
+    let command = vec![
+        "/bin/zsh".to_string(),
+        "-lc".to_string(),
+        "ls ~ > /dev/null && cat /Users/x/decoy/secret.txt".to_string(),
+    ];
+
+    let result = commands_for_exec_policy(&command);
+    assert!(
+        result
+            .commands
+            .iter()
+            .any(|c| c.first().map(String::as_str) == Some("cat")),
+        "forbidden literal `cat` must be checked, got {:?}",
+        result.commands
+    );
+    assert_ne!(
+        result.commands,
+        vec![command],
+        "must not fall back to raw zsh argv"
+    );
+}
+
+#[test]
+fn commands_for_exec_policy_literal_fallback_row6_git_push() {
+    let command = vec![
+        "/bin/zsh".to_string(),
+        "-lc".to_string(),
+        "ls ~ && git push --dry-run /tmp/nonexistent-remote".to_string(),
+    ];
+
+    let result = commands_for_exec_policy(&command);
+    assert!(
+        result
+            .commands
+            .iter()
+            .any(|c| c.first().map(String::as_str) == Some("git")),
+        "forbidden literal `git push` must be checked, got {:?}",
+        result.commands
+    );
+    assert_ne!(
+        result.commands,
+        vec![command],
+        "must not fall back to raw zsh argv"
+    );
+}
+
 #[tokio::test]
 async fn ignore_user_config_keeps_user_policy_files() -> std::io::Result<()> {
     let temp = tempdir()?;
