@@ -22,7 +22,7 @@ pub fn try_parse_shell(shell_lc_arg: &str) -> Option<Tree> {
 /// Parse a script which may contain multiple simple commands joined only by
 /// the safe logical/pipe/sequencing operators: `&&`, `||`, `;`, `|`.
 ///
-/// Returns `Some(Vec<command_words>)` if every command is a plain word‑only
+/// Returns `Some(Vec<command_words>)` if every command is a plain wordظّonly
 /// command and the parse tree does not contain disallowed constructs
 /// (parentheses, redirections, substitutions, control flow, etc.). Otherwise
 /// returns `None`.
@@ -133,7 +133,11 @@ pub fn parse_shell_lc_plain_commands(command: &[String]) -> Option<Vec<Vec<Strin
 /// syntax tree. Dynamic words and redirections are omitted. This is suitable
 /// for identifying dangerous literal commands, but must not be used to prove
 /// that a command is safe.
-pub(crate) fn parse_shell_lc_literal_commands(command: &[String]) -> Option<Vec<Vec<String>>> {
+///
+/// Public so exec-policy can still check literal sub-commands when the strict
+/// plain-command parser rejects a script (e.g. because of `~`, `$HOME`, or a
+/// redirection). See <https://github.com/openai/codex/issues/63384>.
+pub fn parse_shell_lc_literal_commands(command: &[String]) -> Option<Vec<Vec<String>>> {
     let (_, script) = extract_bash_command(command)?;
     let tree = try_parse_shell(script)?;
     let root = tree.root_node();
